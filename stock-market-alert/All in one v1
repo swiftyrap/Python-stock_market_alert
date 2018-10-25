@@ -1,0 +1,70 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Oct 25 23:02:37 2018
+
+@author: Stardust
+"""
+
+import datetime
+import pandas as pd
+import numpy as np
+from pandas_datareader import data
+start_date = '2018-01-01'
+tdy = datetime.datetime.today().strftime('%Y-%m-%d')
+n_avg=50 #The moving avg
+stockdf=pd.read_excel('')
+slist=[]
+slist.append(stockdf["Stock code"])
+for i in stockdf["Stock code"]:
+    df=data.get_data_yahoo(i,start_date)
+    slist.append(df)
+    df1=slist[1]
+df1.name=slist[0][0]
+def moving_average(a, n=3) :
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+avg1=moving_average(df1["Close"].values.tolist(),n_avg)
+avglist=[0 for i in range(1,n_avg)]
+avglist.extend(avg1.tolist())
+avg_colname='avg_' + str(n_avg)
+df1[avg_colname]=avglist
+changeind=[0 if df1[avg_colname][index]==0 else 1 if df1['Close'][index]>=df1[avg_colname][index] else-1 for index,i in enumerate(df1[avg_colname])]
+df1['changeind']=changeind
+ldy=datetime.datetime.strptime(tdy,'%Y-%m-%d') - datetime.timedelta(days=1)
+ldy=datetime.datetime.strftime(ldy,'%Y-%m-%d')
+if df1.loc[tdy,"changeind"]==1 and df1.loc[tdy,"changeind"]==-1:
+    sugg="Buy"
+elif df1.loc[tdy,"changeind"]==-1 and df1.loc[tdy,"changeind"]==1:
+     sugg="Sell"
+else:
+    sugg=""
+sugg
+sugg=["Buy" if df1['changeind'][index]==1 and df1['changeind'][index-1]==-1 else "Sell" if df1['changeind'][index]==-1 and df1['changeind'][index-1]==1 else "" for index,i in enumerate(df1["changeind"])]
+df1['sugg']=sugg
+df2=df1[(df1.sugg=='Buy')|(df1.sugg=='Sell')]
+ldate=df2.index.tolist()
+lact=df2.sugg.tolist()
+suresult=[df1.name]
+suresult.extend(['{:%Y-%m-%d}'.format(ldate[i])+": "+lact[i] for i,x in enumerate(ldate)])
+char='; '
+mailtext=char.join(suresult)    
+
+
+
+import smtplib
+from email.mime.text import MIMEText
+gmail_user = ''
+gmail_password = ''
+msg = MIMEText(mailtext)
+msg['Subject'] = 'Stock analysis result'
+msg['From'] = gmail_user
+msg['To'] = ''
+
+server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+server.ehlo()
+server.login(gmail_user, gmail_password)
+server.send_message(msg)
+server.quit()
+
+print('Email sent!')
